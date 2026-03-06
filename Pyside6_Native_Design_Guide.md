@@ -106,5 +106,34 @@ def nativeEvent(self, eventType, message):
 > [!TIP]
 > **Optimización de Memoria**: En el Nivel 10, cacheamos los objetos `QColor` y `QPen` en los widgets. Consultar el diccionario de temas 60 veces por segundo en un `paintEvent` es un desperdicio de ciclos que evitamos con el sistema de señales.
 
-> [!IMPORTANT]
-> **High-DPI**: Usar `PassThrough` policy para que el escalado de Windows no emborrone el texto suavizado.
+## 6. Despliegue Élite: Nuitka & Qt Resources (.qrc)
+
+Para convertir el script en un producto comercial, pasamos de la interpretación a la **compilación real en C++**.
+
+### A. El Sistema de Recursos (.qrc)
+Evita que el usuario pierda el JSON o los activos. Integra todo en la memoria del binario.
+1. Crea `resources.qrc`:
+   ```xml
+   <RCC><qresource><file>theme.json</file></qresource></RCC>
+   ```
+2. Compila a Python: `pyside6-rcc resources.qrc -o resources_rc.py`
+3. Carga en código: `QFile(":/theme.json")`
+
+### B. Compilación con Nuitka
+Nuitka traduce Python a C++ y genera un binario optimizado, protegido y de arranque instantáneo.
+
+```bash
+python -m nuitka --standalone --onefile --plugin-enable=pyside6 --zig \
+--windows-disable-console --include-data-file=theme.json=theme.json \
+--windows-icon-from-ico=assets/logo.ico --output-dir=dist main.py
+```
+
+### C. Por qué Nuitka vs PyInstaller
+- **Rendimiento**: Ejecución nativa, no descompresión temporal.
+- **Protección**: Código máquina, no bytecode de Python fácil de leer.
+- **Seguridad**: Binario único sin dependencias visibles.
+
+---
+
+> [!CAUTION]
+> **Hot-Reload en Producción**: Al usar `:/theme.json`, el Hot-Reload deja de funcionar porque el recurso es de solo lectura y está embebido. Por eso implementamos el fallback: si detecta un `theme.json` físico al lado del ejecutable, lo prioriza para permitir "tweaks" de diseño en vivo sin recompilar.

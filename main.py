@@ -24,6 +24,10 @@ from PySide6.QtGui import (
 
 # ── Motor de Temas de Producción Élite (Nivel 10) ────────
 import json
+try:
+    import resources_rc # Intentar cargar recursos compilados
+except ImportError:
+    pass
 from PySide6.QtCore import QFileSystemWatcher, Signal, QObject
 
 class ThemeManager(QObject):
@@ -42,10 +46,13 @@ class ThemeManager(QObject):
             self._initialized = True
 
     def _init_themes(self):
+        # Prioridad 1: Recurso embebido (Producción)
+        # Prioridad 2: Archivo físico (Desarrollo/Hot-Reload)
+        self.theme_res = ":/theme.json"
         self.theme_file = os.path.join(os.getcwd(), "theme.json")
         self._load_from_disk()
         
-        # Vigilar cambios en el archivo (Hot-Reload)
+        # Vigilar cambios en el archivo físico si existe (Hot-Reload)
         self.watcher = QFileSystemWatcher()
         if os.path.exists(self.theme_file):
             self.watcher.addPath(self.theme_file)
@@ -53,11 +60,20 @@ class ThemeManager(QObject):
 
     def _load_from_disk(self):
         try:
-            if os.path.exists(self.theme_file):
+            from PySide6.QtCore import QFile, QTextStream
+            # Intentar cargar desde el sistema de recursos de Qt primero
+            f_qt = QFile(self.theme_res)
+            if f_qt.open(QFile.ReadOnly | QFile.Text):
+                stream = QTextStream(f_qt)
+                self.themes = json.loads(stream.readAll())
+                f_qt.close()
+            elif os.path.exists(self.theme_file):
+                # Fallback al disco (Hot-Reload activo)
                 with open(self.theme_file, "r") as f:
                     self.themes = json.load(f)
-                self.current_name = "neutral_dark"
-                self.current = self.themes[self.current_name]
+            
+            self.current_name = "neutral_dark"
+            self.current = self.themes[self.current_name]
         except Exception as e:
             print(f"Error cargando tema: {e}")
 

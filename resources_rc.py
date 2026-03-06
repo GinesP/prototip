@@ -1,0 +1,82 @@
+# Resource object code (Python 3)
+# Created by: object code
+# Created by: The Resource Compiler for Qt version 6.10.2
+# WARNING! All changes made in this file will be lost!
+
+from PySide6 import QtCore
+
+qt_resource_data = b"\
+\x00\x00\x03\x03\
+{\
+\x0d\x0a    \x22neutral_d\
+ark\x22: {\x0d\x0a       \
+ \x22bg\x22: \x22#252525\x22\
+,\x0d\x0a        \x22side\
+bar\x22: \x22#1A1A1A\x22,\
+\x0d\x0a        \x22surfa\
+ce\x22: \x22#2D2D2D\x22,\x0d\
+\x0a        \x22surfac\
+e2\x22: \x22#333333\x22,\x0d\
+\x0a        \x22border\
+\x22: \x22#383838\x22,\x0d\x0a \
+       \x22border_h\
+\x22: \x22#555555\x22,\x0d\x0a \
+       \x22accent\x22:\
+ \x22#FF6428\x22,\x0d\x0a   \
+     \x22secondary\x22\
+: \x22#5A94FF\x22,\x0d\x0a  \
+      \x22text\x22: \x22#\
+E1E1E1\x22,\x0d\x0a      \
+  \x22dim\x22: \x22#88888\
+8\x22,\x0d\x0a        \x22gr\
+een\x22: \x22#30C882\x22,\
+\x0d\x0a        \x22red\x22:\
+ \x22#F0465A\x22\x0d\x0a    \
+},\x0d\x0a    \x22amoled\x22\
+: {\x0d\x0a        \x22bg\
+\x22: \x22#000000\x22,\x0d\x0a \
+       \x22sidebar\x22\
+: \x22#080808\x22,\x0d\x0a  \
+      \x22surface\x22:\
+ \x22#121212\x22,\x0d\x0a   \
+     \x22surface2\x22:\
+ \x22#1A1A1A\x22,\x0d\x0a   \
+     \x22border\x22: \x22\
+#222222\x22,\x0d\x0a     \
+   \x22border_h\x22: \x22\
+#444444\x22,\x0d\x0a     \
+   \x22accent\x22: \x22#F\
+F4500\x22,\x0d\x0a       \
+ \x22secondary\x22: \x22#\
+00BFFF\x22,\x0d\x0a      \
+  \x22text\x22: \x22#FFFF\
+FF\x22,\x0d\x0a        \x22d\
+im\x22: \x22#666666\x22,\x0d\
+\x0a        \x22green\x22\
+: \x22#00FF7F\x22,\x0d\x0a  \
+      \x22red\x22: \x22#F\
+F0000\x22\x0d\x0a    }\x0d\x0a}\
+\x0d\x0a\
+"
+
+qt_resource_name = b"\
+\x00\x0a\
+\x03\x8aG\xde\
+\x00t\
+\x00h\x00e\x00m\x00e\x00.\x00j\x00s\x00o\x00n\
+"
+
+qt_resource_struct = b"\
+\x00\x00\x00\x00\x00\x02\x00\x00\x00\x01\x00\x00\x00\x01\
+\x00\x00\x00\x00\x00\x00\x00\x00\
+\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\
+\x00\x00\x01\x9c\xc2\x98~S\
+"
+
+def qInitResources():
+    QtCore.qRegisterResourceData(0x03, qt_resource_struct, qt_resource_name, qt_resource_data)
+
+def qCleanupResources():
+    QtCore.qUnregisterResourceData(0x03, qt_resource_struct, qt_resource_name, qt_resource_data)
+
+qInitResources()
