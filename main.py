@@ -22,46 +22,127 @@ from PySide6.QtGui import (
     QPainterPath, QPalette
 )
 
-# ── Paleta flat-dark ─────────────────────────
-C_BG       = QColor(37, 37, 37)       # Gris neutro profundo
-C_SURFACE  = QColor(45, 45, 45)       # Ligeramente más claro para cards
-C_SURFACE2 = QColor(60, 60, 60)       # Hover
-C_BORDER   = QColor(56, 56, 56)       # Línea sutil como en la captura
-C_BORDER_H = QColor(80, 80, 80)       # Borde hover
-C_ORANGE   = QColor(255, 100, 40)     # Mantenemos el naranja/azul de acento
-C_BLUE     = QColor(90, 148, 255)     
-C_GREEN    = QColor(48, 200, 130)     
-C_RED      = QColor(240, 70, 90)      
-C_YELLOW   = QColor(240, 190, 50)     
-C_TEXT     = QColor(225, 225, 225)    # Blanco grisáceo limpio
-C_DIM      = QColor(136, 136, 136)    # Texto secundario
-C_SIDEBAR  = QColor(26, 26, 26)       # Sidebar casi negro
+# ── Motor de Temas de Producción Élite (Nivel 10) ────────
+import json
+from PySide6.QtCore import QFileSystemWatcher, Signal, QObject
 
+class ThemeManager(QObject):
+    themeChanged = Signal() # Señal para el Hot-Reload
+    _instance = None
+    
+    def __new__(cls):
+        if not cls._instance:
+            cls._instance = super(ThemeManager, cls).__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        super().__init__()
+        if not hasattr(self, "_initialized"):
+            self._init_themes()
+            self._initialized = True
+
+    def _init_themes(self):
+        self.theme_file = os.path.join(os.getcwd(), "theme.json")
+        self._load_from_disk()
+        
+        # Vigilar cambios en el archivo (Hot-Reload)
+        self.watcher = QFileSystemWatcher()
+        if os.path.exists(self.theme_file):
+            self.watcher.addPath(self.theme_file)
+        self.watcher.fileChanged.connect(self._on_file_changed)
+
+    def _load_from_disk(self):
+        try:
+            if os.path.exists(self.theme_file):
+                with open(self.theme_file, "r") as f:
+                    self.themes = json.load(f)
+                self.current_name = "neutral_dark"
+                self.current = self.themes[self.current_name]
+        except Exception as e:
+            print(f"Error cargando tema: {e}")
+
+    def _on_file_changed(self, path):
+        # Pequeño delay porque algunos editores guardan en dos pasos
+        QTimer.singleShot(100, self._reload)
+
+    def _reload(self):
+        self._load_from_disk()
+        self.themeChanged.emit() # Notificar a todos
+        print("Tema recargado en caliente (Hot-Reload Activo) 🔥")
+
+    def get_color(self, key):
+        if isinstance(key, QColor): return key
+        return QColor(self.current.get(key, "#FF00FF"))
+
+    def get_master_qss(self):
+        c = self.current
+        return f"""
+            QWidget#root {{ background-color: {c['bg']}; color: {c['text']}; }}
+            .Sidebar {{ background-color: {c['sidebar']}; border: none; }}
+            .FlatCard {{ background-color: {c['surface']}; border: 1px solid {c['border']}; border-radius: 10px; }}
+            .FlatCard[state="active"] {{ border-color: {c['accent']}; }}
+            .FlatCard:hover {{ border-color: {c['accent']}; }}
+            QScrollBar:vertical {{ border: none; background: transparent; width: 6px; }}
+            QScrollBar::handle:vertical {{ background: {c['accent']}; opacity: 0.5; border-radius: 3px; }}
+        """
+
+theme = ThemeManager()
+
+def update_widget_style(w, state=None):
+    """El truco industrial: fuerza a Qt a re-evaluar el QSS al cambiar propiedades."""
+    if state: w.setProperty("state", state)
+    w.style().unpolish(w)
+    w.style().polish(w)
+    w.update()
+
+# Punteros de compatibilidad vivos (Nivel 10)
+C_BG = theme.get_color("bg")
+C_SIDEBAR = theme.get_color("sidebar")
+C_SURFACE = theme.get_color("surface")
+C_SURFACE2 = theme.get_color("surface2")
+C_BORDER = theme.get_color("border")
+C_BORDER_H = theme.get_color("border_h")
+C_ORANGE = theme.get_color("accent")
+C_BLUE = theme.get_color("secondary")
+C_TEXT = theme.get_color("text")
+C_DIM = theme.get_color("dim")
+C_GREEN = theme.get_color("green")
+C_RED = theme.get_color("red")
+C_YELLOW = theme.get_color("accent")
+
+def refresh_global_colors():
+    global C_BG, C_SIDEBAR, C_SURFACE, C_SURFACE2, C_BORDER, C_BORDER_H, C_ORANGE, C_BLUE, C_TEXT, C_DIM, C_GREEN, C_RED, C_YELLOW
+    C_BG = theme.get_color("bg")
+    C_SIDEBAR = theme.get_color("sidebar")
+    C_SURFACE = theme.get_color("surface")
+    C_SURFACE2 = theme.get_color("surface2")
+    C_BORDER = theme.get_color("border")
+    C_BORDER_H = theme.get_color("border_h")
+    C_ORANGE = theme.get_color("accent")
+    C_BLUE = theme.get_color("secondary")
+    C_TEXT = theme.get_color("text")
+    C_DIM = theme.get_color("dim")
+    C_GREEN = theme.get_color("green")
+    C_RED = theme.get_color("red")
+    C_YELLOW = theme.get_color("accent")
+
+theme.themeChanged.connect(refresh_global_colors)
 
 def aa_font(size=10, weight=QFont.Medium):
-    # Intentamos usar la versión "Variable" de Segoe UI que es mucho más suave, o Inter
     f = QFont("Segoe UI Variable Display", size)
-    if f.family() != "Segoe UI Variable Display":
-        f = QFont("Inter", size)
-    if f.family() != "Inter":
-        f = QFont("Segoe UI", size)
-        
+    if f.family() != "Segoe UI Variable Display": f = QFont("Inter", size)
     f.setWeight(weight)
-    # PreferNoHinting hace que las fuentes se vean más redondas y menos "pixeladas"
     f.setStyleStrategy(QFont.PreferAntialias | QFont.PreferQuality)
     f.setHintingPreference(QFont.PreferNoHinting)
     return f
 
-def label(text, size=11, color=None, bold=False, caps=False, letter_spacing=0):
+def label(text, size=11, color="text", bold=False, caps=False, letter_spacing=0):
     l = QLabel(text)
-    col = color or C_TEXT
-    # Usamos DemiBold (600) para el "bold" para que no sea excesivamente grueso
+    c = theme.get_color(color)
     weight = "600" if bold else "500"
     ls = f"letter-spacing:{letter_spacing}px;" if letter_spacing else ""
     tc = f"text-transform:uppercase;" if caps else ""
-    l.setStyleSheet(f"color:rgba({col.red()},{col.green()},{col.blue()},255);"
-                    f"font-size:{size}px;font-weight:{weight};"
-                    f"background:transparent;{ls}{tc}")
+    l.setStyleSheet(f"color:rgba({c.red()},{c.green()},{c.blue()},255); font-size:{size}px; font-weight:{weight}; background:transparent; {ls}{tc}")
     return l
 
 
@@ -93,13 +174,14 @@ class FlatCard(QWidget):
 
     def paintEvent(self, _):
         p = QPainter(self)
-        p.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing)
+        # Nivel 10 Rendering Strategy
+        p.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.SmoothPixmapTransform)
         r = self.rect()
         path = QPainterPath()
         path.addRoundedRect(r.x(), r.y(), r.width(), r.height(), self._radius, self._radius)
         p.setPen(Qt.NoPen)
-        p.fillPath(path, QBrush(C_SURFACE2 if self._hover else C_SURFACE))
-        p.setPen(QPen(C_BORDER_H if self._hover else C_BORDER, 1))
+        p.fillPath(path, QBrush(theme.get_color("surface2") if self._hover else theme.get_color("surface")))
+        p.setPen(QPen(theme.get_color("border_h") if self._hover else theme.get_color("border"), 1))
         p.setBrush(Qt.NoBrush)
         p.drawRoundedRect(r.adjusted(1,1,-1,-1), self._radius, self._radius)
         p.end()
@@ -176,16 +258,26 @@ class StatsPanel(FlatCard):
         lay.addLayout(row)
 
 
-# ── BarChart ──────────────────────────────────
 class BarChart(QWidget):
-    def __init__(self, accent=None, parent=None):
+    def __init__(self, color_key="accent", parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self._accent = accent or C_ORANGE
+        self._color_key = color_key
+        # Caché Dinámica con Conexión al Motor (Nivel 10)
+        self._refresh_cache()
+        theme.themeChanged.connect(self._refresh_cache)
+        
         self._labels = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"]
         self._values = [random.randint(20,95) for _ in range(7)]
         self._av = [0.0]*7
         t = QTimer(self); t.timeout.connect(self._anim); t.start(16)
+
+    def _refresh_cache(self):
+        self._cache_color = theme.get_color(self._color_key)
+        self._cache_dim = QColor(int(self._cache_color.red()*0.45), 
+                                 int(self._cache_color.green()*0.45), 
+                                 int(self._cache_color.blue()*0.45))
+        self.update()
 
     def _anim(self):
         done = True
@@ -197,15 +289,18 @@ class BarChart(QWidget):
 
     def paintEvent(self, _):
         p = QPainter(self)
-        p.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing)
+        p.setRenderHints(QPainter.Antialiasing | QPainter.TextAntialiasing | QPainter.SmoothPixmapTransform)
         w, h = self.width(), self.height()
         pl, pb = 8, 26; ch = h-pb-8; bw = (w-pl*2)/7; gap = bw*0.35
         mx = max(self._av) if max(self._av) > 0 else 1
+        
+        # Uso de color cacheado
+        col_main = self._cache_color
+        col_dim = QColor(int(col_main.red()*0.45), int(col_main.green()*0.45), int(col_main.blue()*0.45))
+        
         for i, (lbl, val) in enumerate(zip(self._labels, self._av)):
             bx = pl + i*bw + gap/2; bww = bw-gap; bh = ch*(val/mx)*0.9; by = h-pb-bh
-            # barra activa vs inactiva
-            col = self._accent if i == self._av.index(max(self._av)) else QColor(
-                int(self._accent.red()*0.45), int(self._accent.green()*0.45), int(self._accent.blue()*0.45))
+            col = col_main if i == self._av.index(max(self._av)) else col_dim
             path = QPainterPath(); r2 = min(4, bww/2)
             path.addRoundedRect(bx, by, bww, bh, r2, r2)
             p.setPen(Qt.NoPen); p.fillPath(path, QBrush(col))
@@ -674,8 +769,16 @@ class MainWindow(QMainWindow):
             margins = MARGINS(1, 1, 1, 1)
             ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hWnd, ctypes.byref(margins))
 
+        # Hot-Reload: Re-aplicar estilos cuando el JSON cambie
+        theme.themeChanged.connect(self._refresh_styles)
+        self._refresh_styles()
+
+    def _refresh_styles(self):
+        self.setStyleSheet(theme.get_master_qss())
+        # Notificar a los hijos manuales (si los hay)
+        self.update()
+
         root=QWidget(); root.setObjectName("root")
-        root.setStyleSheet(f"#root{{background:rgba({C_BG.red()},{C_BG.green()},{C_BG.blue()},255);}}")
         self.setCentralWidget(root)
 
         root_layout = QVBoxLayout(root)
@@ -777,10 +880,14 @@ def main():
     f=aa_font(10, QFont.Medium); app.setFont(f)
 
     pal=QPalette()
-    pal.setColor(QPalette.Window, C_BG); pal.setColor(QPalette.WindowText, C_TEXT)
-    pal.setColor(QPalette.Base, C_SURFACE); pal.setColor(QPalette.Text, C_TEXT)
-    pal.setColor(QPalette.Button, C_SURFACE); pal.setColor(QPalette.ButtonText, C_TEXT)
-    pal.setColor(QPalette.Highlight, C_ORANGE); pal.setColor(QPalette.HighlightedText, Qt.white)
+    pal.setColor(QPalette.Window, theme.get_color("bg"))
+    pal.setColor(QPalette.WindowText, theme.get_color("text"))
+    pal.setColor(QPalette.Base, theme.get_color("surface"))
+    pal.setColor(QPalette.Text, theme.get_color("text"))
+    pal.setColor(QPalette.Button, theme.get_color("surface"))
+    pal.setColor(QPalette.ButtonText, theme.get_color("text"))
+    pal.setColor(QPalette.Highlight, theme.get_color("accent"))
+    pal.setColor(QPalette.HighlightedText, Qt.white)
     app.setPalette(pal)
 
     win=MainWindow(); win.show()

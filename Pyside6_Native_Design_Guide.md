@@ -1,106 +1,110 @@
-# Guía Premium PySide6: Neutral-Dark & Native Shadows (Windows)
+# Guía Premium PySide6 Nivel 10: Elite Design Framework
 
-Esta guía documenta la configuración técnica definitiva para lograr una interfaz de alta calidad, minimalista y con integración nativa perfecta en Windows.
+Esta guía documenta la arquitectura definitiva para aplicaciones de alto rendimiento con diseño **Neutral-Dark**, reactividad estética instantánea (**Hot-Reload**) e integración nativa perfecta en Windows.
 
-## 1. Sombra Nativa de Alta Calidad (WM_NCCALCSIZE)
+## 1. El Motor de Temas Reactivo (Data-Driven JSON)
 
-Este método es superior a los efectos de Qt porque utiliza el motor de Windows (DWM), logrando una sombra suave y profesional sin esfuerzo de CPU.
+En el Nivel 10, el diseño no está "quemado" en el código. Se gestiona un **ThemeManager** que vigila un archivo `theme.json` externo.
 
+### Arquitectura del ThemeManager
 ```python
-import ctypes
-from ctypes import wintypes
-import os
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow
+from PySide6.QtCore import QFileSystemWatcher, Signal, QObject
+import json, os
 
-class MainWindow(QMainWindow):
+class ThemeManager(QObject):
+    themeChanged = Signal() # Se emite al detectar cambios en el JSON
+
+    def _init_themes(self):
+        self.theme_file = "theme.json"
+        self.watcher = QFileSystemWatcher([self.theme_file])
+        self.watcher.fileChanged.connect(self._reload)
+
+    def _reload(self):
+        # Recarga el JSON y notifica a toda la App
+        with open(self.theme_file, "r") as f:
+            self.current = json.load(f)["neutral_dark"]
+        self.themeChanged.emit()
+```
+
+---
+
+## 2. Reactividad en Tiempo Real (Hot-Reload)
+
+Para que toda la App cambie de color sin reiniciarse, usamos el patrón de **Suscripción y Pulido**.
+
+### El Secreto del "Unpolish/Polish"
+Qt requiere forzar la reevaluación del motor CSS al cambiar propiedades dinámicas.
+```python
+def update_widget_style(w, state=None):
+    if state: w.setProperty("state", state)
+    w.style().unpolish(w)
+    w.style().polish(w)
+    w.update()
+```
+
+### Suscripción de Componentes
+Los componentes con dibujo manual (`QPainter`) deben suscribirse a la señal para refrescar su caché de colores:
+```python
+class CustomChart(QWidget):
     def __init__(self):
-        super().__init__()
-        # 1. Quitar barra nativa pero mantener Shadow/Resize nativo
-        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        theme.themeChanged.connect(self._refresh_cache)
+        self._refresh_cache()
 
-        if os.name == 'nt':
-            hWnd = int(self.winId())
-            GWL_STYLE = -16
-            # Bits necesarios para que Windows considere la ventana "normal" y dibuje sombra
-            WS_CAPTION = 0x00C00000
-            WS_THICKFRAME = 0x00040000
-            WS_SYSMENU = 0x00080000
-            WS_MAXIMIZEBOX = 0x00010000
-            WS_MINIMIZEBOX = 0x00020000
-            
-            style = ctypes.windll.user32.GetWindowLongW(hWnd, GWL_STYLE)
-            ctypes.windll.user32.SetWindowLongW(hWnd, GWL_STYLE, style | WS_CAPTION | WS_THICKFRAME | WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_SYSMENU)
-            
-            # Forzar la sombra DWM
-            class MARGINS(ctypes.Structure):
-                _fields_ = [("cxLeftWidth", ctypes.c_int), ("cxRightWidth", ctypes.c_int),
-                            ("cyTopHeight", ctypes.c_int), ("cyBottomHeight", ctypes.c_int)]
-            margins = MARGINS(1, 1, 1, 1)
-            ctypes.windll.dwmapi.DwmExtendFrameIntoClientArea(hWnd, ctypes.byref(margins))
-
-    def nativeEvent(self, eventType, message):
-        """EL TRUCO: Intercepta WM_NCCALCSIZE para ocultar la barra blanca nativa."""
-        if eventType == "windows_generic_MSG":
-            msg = wintypes.MSG.from_address(int(message))
-            if msg.message == 0x0083: # WM_NCCALCSIZE
-                return True, 0 # Windows no reserva espacio para la barra de título
-        return super().nativeEvent(eventType, message)
+    def _refresh_cache(self):
+        self._color = theme.get_color("accent")
+        self.update()
 ```
 
 ---
 
-## 2. Renderizado de Fuente "Estilo Editor" (Smooth & Body)
+## 3. Renderizado de Élite (Nivel 10 Anti-Aliasing)
 
-Para evitar letras delgadas o pixeladas sobre grises oscuros profundos, ajustamos el *Hinting* y la familia de fuentes.
+Para eliminar bordes dentados en interfaces oscuras, aplicamos una triple estrategia de renderizado gráfico.
+
+### Estrategia de Rasterización en Componentes Custom
+```python
+def paintEvent(self, event):
+    p = QPainter(self)
+    # CONFIGURACIÓN ÉLITE:
+    p.setRenderHints(
+        QPainter.Antialiasing |             # Suaviza bordes de formas
+        QPainter.TextAntialiasing |         # Suaviza curvas de fuentes
+        QPainter.SmoothPixmapTransform      # Suaviza transformaciones de imágenes
+    )
+```
+
+---
+
+## 4. Sombra Nativa Premium (WM_NCCALCSIZE)
+
+Para ventanas sin bordes, interceptamos los mensajes del sistema para que Windows aplique la sombra DWM real (acelerada por GPU).
 
 ```python
-from PySide6.QtGui import QFont, QFontDatabase
-
-def get_smooth_font(size=10, weight=QFont.Medium):
-    # 'Segoe UI Variable' es la fuente nativa de Win11 que renderiza mejor
-    f = QFont("Segoe UI Variable Display", size)
-    if f.family() != "Segoe UI Variable Display":
-        f = QFont("Inter", size)
-    
-    f.setWeight(weight)
-    
-    # ESTRATEGIA CLAVE: PreferNoHinting evita que Windows fuerce las letras a píxeles
-    # individuales, permitiendo curvas suaves y redondas como en los editores de código.
-    f.setStyleStrategy(QFont.PreferAntialias | QFont.PreferQuality)
-    f.setHintingPreference(QFont.PreferNoHinting)
-    return f
-
-# Aplicación global en main():
-# app.setFont(get_smooth_font(10, QFont.Medium))
+def nativeEvent(self, eventType, message):
+    if eventType == "windows_generic_MSG":
+        msg = wintypes.MSG.from_address(int(message))
+        if msg.message == 0x0083: # WM_NCCALCSIZE
+            return True, 0 # Elimina bordes blancos pero mantiene la sombra
+    return super().nativeEvent(eventType, message)
 ```
 
 ---
 
-## 3. Paleta "Neutral-Dark" (Tokens)
+## 5. Tokens de Diseño (theme.json)
 
-Colores neutros que eliminan el tinte azulado para un look más serio y profesional.
-
-| Token | Color (HEX/RGB) | Uso |
+| Token | Propósito | Valor Sugerido |
 |---|---|---|
-| **Fondo** | `#252525` | Fondo principal del área de contenido |
-| **Sidebar** | `#1A1A1A` | Barra lateral (máximo contraste) |
-| **Borde / Línea** | `#383838` | Divisores sutiles y bordes de cards |
-| **Superficie** | `#2D2D2D` | Fondo de tarjetas (ligeramente más claro) |
-| **Texto Principal** | `#E1E1E1` | Blanco neutro, no puro para evitar fatiga |
-| **Acento 🟠** | `#FF6428` | Naranja para números y botones principales |
-| **Acento 🔵** | `#5A94FF` | Azul para métricas secundarias |
+| `bg` | Fondo profundo | `#252525` |
+| `sidebar` | Contraste máximo | `#1A1A1A` |
+| `surface` | Cards elevadas | `#2D2D2D` |
+| `surface2`| Estado Hover | `#333333` |
+| `accent` | Color de marca 🟠 | `#FF6428` |
+| `border` | Líneas de definición | `#383838` |
 
 ---
 
-## 4. UI Patterns
-
-- **Stats Row**: Uso de divisores verticales (`VLine`) entre métricas para un diseño limpio.
-- **Uppercased Headers**: `letter-spacing: 1px` y `size: 10px` para títulos de sección profesionales.
-- **Scrollbars Inset**: Anchura de `5px` o `6px` con color de acento semitransparente.
-
----
+> [!TIP]
+> **Optimización de Memoria**: En el Nivel 10, cacheamos los objetos `QColor` y `QPen` en los widgets. Consultar el diccionario de temas 60 veces por segundo en un `paintEvent` es un desperdicio de ciclos que evitamos con el sistema de señales.
 
 > [!IMPORTANT]
-> **High-DPI**: Siempre llamar a `QApplication.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)` antes de crear la `QApplication` para evitar renderizados borrosos en monitores 4K o portátiles con escala (125%, 150%).
+> **High-DPI**: Usar `PassThrough` policy para que el escalado de Windows no emborrone el texto suavizado.
