@@ -13,18 +13,18 @@
         "green": "#30C882",
         "red": "#F0465A"
     },
-    "amoled": {
-        "bg": "#000000",
-        "sidebar": "#080808",
-        "surface": "#121212",
-        "surface2": "#1A1A1A",
-        "border": "#222222",
-        "border_h": "#444444",
-        "accent": "#FF4500",
-        "secondary": "#00BFFF",
-        "text": "#FFFFFF",
-        "dim": "#666666",
-        "green": "#00FF7F",
-        "red": "#FF0000"
+    "neutral_light": {
+        "bg": "#F5F5F7",
+        "sidebar": "#FFFFFF",
+        "surface": "#FFFFFF",
+        "surface2": "#F0F0F2",
+        "border": "#E5E5E7",
+        "border_h": "#D1D1D6",
+        "accent": "#FF6428",
+        "secondary": "#007AFF",
+        "text": "#1D1D1F",
+        "dim": "#86868B",
+        "green": "#34C759",
+        "red": "#FF3B30"
     }
 }

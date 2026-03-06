@@ -135,5 +135,28 @@ python -m nuitka --standalone --onefile --plugin-enable=pyside6 --zig \
 
 ---
 
-> [!CAUTION]
-> **Hot-Reload en Producción**: Al usar `:/theme.json`, el Hot-Reload deja de funcionar porque el recurso es de solo lectura y está embebido. Por eso implementamos el fallback: si detecta un `theme.json` físico al lado del ejecutable, lo prioriza para permitir "tweaks" de diseño en vivo sin recompilar.
+## 7. Micro-interacciones: Transiciones de Lujo (Nivel 10.1)
+
+Para evitar el "latigazo visual" al cambiar de estado o de tema, implementamos transiciones de opacidad.
+
+```python
+def fade_transition(widget, duration=300):
+    effect = QGraphicsOpacityEffect(widget)
+    widget.setGraphicsEffect(effect)
+    ani = QPropertyAnimation(effect, b"opacity")
+    ani.setDuration(duration)
+    # ... lógica de fade out / fade in
+```
+
+## 8. Paletas Duales Estándar
+
+### Neutral Dark (Default)
+`#252525` (BG) | `#E1E1E1` (Text) | `#FF6428` (Accent)
+
+### Neutral Light (Professional Light)
+`#F5F5F7` (BG) | `#1D1D1F` (Text) | `#007AFF` / `#FF6428` (Accent)
+
+---
+
+> [!TIP]
+> **Consistencia Visual**: Al usar el modo claro, reduce ligeramente la opacidad de los bordes (`border_h`) para evitar que la interfaz se sienta "enjaulada". El espacio negativo es tu aliado en el Nivel 10.

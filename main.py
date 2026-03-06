@@ -61,21 +61,30 @@ class ThemeManager(QObject):
     def _load_from_disk(self):
         try:
             from PySide6.QtCore import QFile, QTextStream
-            # Intentar cargar desde el sistema de recursos de Qt primero
-            f_qt = QFile(self.theme_res)
-            if f_qt.open(QFile.ReadOnly | QFile.Text):
-                stream = QTextStream(f_qt)
-                self.themes = json.loads(stream.readAll())
-                f_qt.close()
-            elif os.path.exists(self.theme_file):
-                # Fallback al disco (Hot-Reload activo)
+            # Recordar qué tema teníamos antes de recargar del disco
+            active_name = getattr(self, "current_name", "neutral_dark")
+            
+            if os.path.exists(self.theme_file):
                 with open(self.theme_file, "r") as f:
                     self.themes = json.load(f)
+            else:
+                f_qt = QFile(self.theme_res)
+                if f_qt.open(QFile.ReadOnly | QFile.Text):
+                    stream = QTextStream(f_qt)
+                    self.themes = json.loads(stream.readAll())
+                    f_qt.close()
             
-            self.current_name = "neutral_dark"
+            self.current_name = active_name
             self.current = self.themes[self.current_name]
         except Exception as e:
             print(f"Error cargando tema: {e}")
+
+    def set_theme(self, name):
+        if name in self.themes:
+            self.current_name = name
+            self.current = self.themes[name]
+            self.themeChanged.emit() # ¡BUM! Hot-Reload interno
+            print(f"Cambiado a tema: {name} ✨")
 
     def _on_file_changed(self, path):
         # Pequeño delay porque algunos editores guardan en dos pasos
@@ -857,8 +866,13 @@ class MainWindow(QMainWindow):
 
         lay.addStretch()
 
+        # Toggle de tema (Nivel 10 Elite Feature)
+        self._btn_theme = SidebarButton("◑", "Tema Clar" if theme.current_name == "neutral_dark" else "Tema Fosc")
+        self._btn_theme.clicked.connect(self._toggle_theme)
+        lay.addWidget(self._btn_theme)
+
         sep2=QFrame(); sep2.setFrameShape(QFrame.HLine)
-        sep2.setStyleSheet(f"background:rgba({C_BORDER.red()},{C_BORDER.green()},{C_BORDER.blue()},255);border:none;max-height:1px;")
+        sep2.setStyleSheet(f"background:rgba({C_BORDER.red()},{C_BORDER.green()},{C_BORDER.blue()},255);border:none;max-height:1px;margin:8px 0;")
         lay.addWidget(sep2)
 
         # User area
@@ -874,6 +888,29 @@ class MainWindow(QMainWindow):
         vl.addWidget(label("Administrador", 10, C_DIM))
         ul.addWidget(av); ul.addLayout(vl); lay.addWidget(uw)
         return sb, btns
+
+    def _toggle_theme(self):
+        # Efecto de fundido (Nivel 10 Polish)
+        f = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(f)
+        ani = QPropertyAnimation(f, b"opacity")
+        ani.setDuration(300); ani.setStartValue(1.0); ani.setEndValue(0.0)
+        
+        def swap():
+            new_name = "neutral_light" if theme.current_name == "neutral_dark" else "neutral_dark"
+            theme.set_theme(new_name)
+            self._btn_theme.setText(f"  ◑  {'Tema Fosc' if new_name == 'neutral_light' else 'Tema Clar'}")
+            self._btn_theme.setChecked(False)
+            # Volver a 1.0
+            ani2 = QPropertyAnimation(f, b"opacity")
+            ani2.setDuration(400); ani2.setStartValue(0.0); ani2.setEndValue(1.0)
+            ani2.finished.connect(lambda: self.setGraphicsEffect(None))
+            ani2.start()
+            self._ani2 = ani2 # Keep ref
+            
+        ani.finished.connect(swap)
+        ani.start()
+        self._ani = ani # Keep ref
 
     def nativeEvent(self, eventType, message):
         """Intercepta mensajes de Windows para controlar el área no cliente (sombra y bordes)."""
