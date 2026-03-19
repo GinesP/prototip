@@ -107,8 +107,10 @@ class ThemeManager(QObject):
             .FlatCard {{ background-color: {c['surface']}; border: 1px solid {c['border']}; border-radius: 10px; }}
             .FlatCard[state="active"] {{ border-color: {c['accent']}; }}
             .FlatCard:hover {{ border-color: {c['accent']}; }}
-            QScrollBar:vertical {{ border: none; background: transparent; width: 6px; }}
-            QScrollBar::handle:vertical {{ background: {c['accent']}; opacity: 0.5; border-radius: 3px; }}
+            QScrollBar:vertical {{ border: none; background: transparent; width: 12px; margin: 2px; }}
+            QScrollBar::handle:vertical {{ background: {c['accent']}; opacity: 0.5; border-radius: 6px; min-height: 36px; }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0px; }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: transparent; }}
         """
 
 theme = ThemeManager()
@@ -600,9 +602,10 @@ def _scroll(inner):
     sc.setStyleSheet("QScrollArea{background:transparent;border:none;}")
     sc.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     sc.verticalScrollBar().setStyleSheet(
-        f"QScrollBar:vertical{{background:rgba({C_SURFACE.red()},{C_SURFACE.green()},{C_SURFACE.blue()},255);width:5px;border-radius:2px;}}"
-        f"QScrollBar::handle:vertical{{background:rgba({C_ORANGE.red()},{C_ORANGE.green()},{C_ORANGE.blue()},120);border-radius:2px;}}"
-        "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}")
+        f"QScrollBar:vertical{{background:rgba({C_SURFACE.red()},{C_SURFACE.green()},{C_SURFACE.blue()},255);width:12px;border-radius:6px;margin:2px;}}"
+        f"QScrollBar::handle:vertical{{background:rgba({C_ORANGE.red()},{C_ORANGE.green()},{C_ORANGE.blue()},120);border-radius:6px;min-height:36px;}}"
+        "QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}"
+        "QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical{background:transparent;}")
     inner.setStyleSheet("background:transparent;"); sc.setWidget(inner); return sc
 
 def _section(main_text, sub_text=None):
@@ -921,6 +924,38 @@ class MainWindow(QMainWindow):
                 # Al devolver 1 (True), le decimos a Windows que no calcule área no cliente
                 # Esto elimina la barra de título pero permite que DWM pinte la sombra nativa.
                 return True, 0
+            if msg.message == 0x0084 and not self.isMaximized(): # WM_NCHITTEST
+                border = 8
+                x = ctypes.c_short(msg.lParam & 0xFFFF).value
+                y = ctypes.c_short((msg.lParam >> 16) & 0xFFFF).value
+                fg = self.frameGeometry()
+
+                left = fg.left()
+                right = fg.right()
+                top = fg.top()
+                bottom = fg.bottom()
+
+                on_left = left <= x < left + border
+                on_right = right - border < x <= right
+                on_top = top <= y < top + border
+                on_bottom = bottom - border < y <= bottom
+
+                if on_top and on_left:
+                    return True, 13  # HTTOPLEFT
+                if on_top and on_right:
+                    return True, 14  # HTTOPRIGHT
+                if on_bottom and on_left:
+                    return True, 16  # HTBOTTOMLEFT
+                if on_bottom and on_right:
+                    return True, 17  # HTBOTTOMRIGHT
+                if on_left:
+                    return True, 10  # HTLEFT
+                if on_right:
+                    return True, 11  # HTRIGHT
+                if on_top:
+                    return True, 12  # HTTOP
+                if on_bottom:
+                    return True, 15  # HTBOTTOM
         return super().nativeEvent(eventType, message)
 
     def resizeEvent(self, e):
