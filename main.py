@@ -11,7 +11,7 @@ os.environ.setdefault("QT_SCALE_FACTOR_ROUNDING_POLICY", "PassThrough")
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QFrame, QGraphicsDropShadowEffect, QGraphicsOpacityEffect,
-    QScrollArea, QSizePolicy, QGridLayout, QProgressBar
+    QScrollArea, QSizePolicy, QGridLayout, QProgressBar, QFileDialog, QLineEdit
 )
 from PySide6.QtCore import (
     Qt, QPoint, QPropertyAnimation, QEasingCurve,
@@ -721,6 +721,50 @@ class AnalitiquesPage(QWidget):
         root=QVBoxLayout(self); root.setContentsMargins(0,0,0,0); root.addWidget(_scroll(inner))
 
 
+class FileSelectorWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self._file_path = ""
+        lay = QHBoxLayout(self); lay.setContentsMargins(0,0,0,0); lay.setSpacing(8)
+
+        self._path_input = QLineEdit()
+        self._path_input.setReadOnly(True)
+        self._path_input.setPlaceholderText("Selecciona un fitxer...")
+        self._path_input.setFixedHeight(36)
+
+        self._btn = QPushButton("📂")
+        self._btn.setFixedSize(36, 36); self._btn.setCursor(Qt.PointingHandCursor)
+        self._btn.clicked.connect(self._select_file)
+
+        lay.addWidget(self._path_input, 1)
+        lay.addWidget(self._btn)
+
+        theme.themeChanged.connect(self._refresh_style)
+        self._refresh_style()
+
+    def _refresh_style(self):
+        self._path_input.setStyleSheet(f"QLineEdit{{background:rgba({C_SURFACE.red()},{C_SURFACE.green()},{C_SURFACE.blue()},255);"
+                                        f"color:rgba({C_TEXT.red()},{C_TEXT.green()},{C_TEXT.blue()},255);"
+                                        f"border:1px solid rgba({C_BORDER.red()},{C_BORDER.green()},{C_BORDER.blue()},255);"
+                                        f"border-radius:6px;padding:0 12px;font-size:12px;}}")
+        self._btn.setStyleSheet(f"QPushButton{{background:rgba({C_ORANGE.red()},{C_ORANGE.green()},{C_ORANGE.blue()},200);"
+                                f"color:white;font-size:14px;border:none;border-radius:6px;}}"
+                                f"QPushButton:hover{{background:rgba({C_ORANGE.red()},{C_ORANGE.green()},{C_ORANGE.blue()},255);}}")
+
+    def _select_file(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar fitxer", "",
+            "Tots els fitxers (*);;Imatges (*.png *.jpg *.jpeg);;Documents (*.pdf *.docx)"
+        )
+        if path:
+            self._file_path = path
+            self._path_input.setText(path)
+
+    def get_selected_file(self):
+        return self._file_path
+
+
 class ProjectesPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent); self.setAttribute(Qt.WA_TranslucentBackground)
@@ -734,6 +778,13 @@ class ProjectesPage(QWidget):
                          f"color:white;font-size:12px;font-weight:700;border:none;border-radius:6px;padding:0 18px;}}"
                          f"QPushButton:hover{{background:rgba({C_ORANGE.red()},{C_ORANGE.green()},{C_ORANGE.blue()},255);}}")
         hdr.addWidget(nb); lay.addLayout(hdr)
+
+        file_card = FlatCard(); file_card.setMinimumHeight(80)
+        fl = QVBoxLayout(file_card); fl.setContentsMargins(18,14,18,14); fl.setSpacing(10)
+        fl.addWidget(_card_title("adjuntar fitxer"))
+        self._file_selector = FileSelectorWidget()
+        fl.addWidget(self._file_selector)
+        lay.addWidget(file_card)
 
         projects={
             "EN CURS":[
